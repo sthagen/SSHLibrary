@@ -35,7 +35,7 @@ class SSHClientException(RuntimeError):
 class _ClientConfiguration(Configuration):
 
     def __init__(self, host, alias, port, timeout, newline, prompt, term_type,
-                 width, height, path_separator, encoding, escape_ansi, handle_decode_errors):
+                 width, height, path_separator, encoding, escape_ansi, encoding_errors):
         super(_ClientConfiguration, self).__init__(
             index=IntegerEntry(None),
             host=StringEntry(host),
@@ -50,7 +50,7 @@ class _ClientConfiguration(Configuration):
             path_separator=StringEntry(path_separator),
             encoding=StringEntry(encoding),
             escape_ansi=StringEntry(escape_ansi),
-            handle_decode_errors=StringEntry(handle_decode_errors)
+            encoding_errors=StringEntry(encoding_errors)
         )
 
 
@@ -63,10 +63,10 @@ class AbstractSSHClient(object):
     """
     def __init__(self, host, alias=None, port=22, timeout=3, newline='LF',
                  prompt=None, term_type='vt100', width=80, height=24,
-                 path_separator='/', encoding='utf8', escape_ansi=False, handle_decode_errors='NONE'):
+                 path_separator='/', encoding='utf8', escape_ansi=False, encoding_errors='strict'):
         self.config = _ClientConfiguration(host, alias, port, timeout, newline,
                                            prompt, term_type, width, height,
-                                           path_separator, encoding, escape_ansi, handle_decode_errors)
+                                           path_separator, encoding, escape_ansi, encoding_errors)
         self._sftp_client = None
         self._scp_transfer_client = None
         self._scp_all_client = None
@@ -183,7 +183,7 @@ class AbstractSSHClient(object):
             available public keys for login. This will also enable ssh agent.
             This option is ignored when using Jython.
 
-        :param str proxy_cmd: Proxy command 
+        :param str proxy_cmd: Proxy command
         :param str delay: The `delay` passed to :py:meth:`read` for reading
             the output after logging in. The delay is only effective if
             the prompt is not set.
@@ -217,14 +217,10 @@ class AbstractSSHClient(object):
             return text
         if not is_string(text):
             text = unicode(text)
-        if self.config.handle_decode_errors.upper() == 'NONE':
-            return text.encode(self.config.encoding)
-        return text.encode(self.config.encoding, self.config.handle_decode_errors)
+        return text.encode(self.config.encoding, self.config.encoding_errors)
 
     def _decode(self, bytes):
-        if self.config.handle_decode_errors.upper() == 'NONE':
-            return bytes.decode(self.config.encoding)
-        return bytes.decode(self.config.encoding, self.config.handle_decode_errors)
+        return bytes.decode(self.config.encoding, self.config.encoding_errors)
 
     def _login(self, username, password, allow_agent, look_for_keys, proxy_cmd, read_config,
                jumphost_connection, keep_alive_interval):
@@ -266,7 +262,7 @@ class AbstractSSHClient(object):
             the prompt is not set.
 
         :param str proxy_cmd : Proxy command
-        
+
         :param PythonSSHClient jumphost_connection : An instance of
             PythonSSHClient that is will be used as an intermediary jump-host
             for the SSH connection being attempted.
@@ -282,7 +278,7 @@ class AbstractSSHClient(object):
             username = self._encode(username)
         if keyfile:
             self._verify_key_file(keyfile)
-            keep_alive_interval = int(TimeEntry(keep_alive_interval).value)
+        keep_alive_interval = int(TimeEntry(keep_alive_interval).value)
         try:
             self._login_with_public_key(username, keyfile, password,
                                         allow_agent, look_for_keys,
@@ -447,12 +443,11 @@ class AbstractSSHClient(object):
             try:
                 server_output += self.shell.read_byte()
                 return self._decode(server_output)
-            except UnicodeDecodeError:
-                if self.config.handle_decode_errors.upper() == 'STRICT':
-                    self.shell.read() # clear shell to eliminate the characters that cause the error
-                    raise
-                else:
+            except UnicodeDecodeError as e:
+                if e.reason == 'unexpected end of data':
                     pass
+                else:
+                    raise
 
     def read_until(self, expected):
         """Reads output from the current shell until the `expected` text is
@@ -477,10 +472,12 @@ class AbstractSSHClient(object):
         timeout = TimeEntry(timeout) if timeout else self.config.get('timeout')
         max_time = time.time() + timeout.value
         while time.time() < max_time:
-            output += self.read_char()
+            char = self.read_char()
+            if not char:
+                time.sleep(.00001)  # Release GIL so paramiko I/O thread can run
+            output += char
             if matcher(output):
                 return output
-            time.sleep(.00001) # Release GIL so paramiko I/O thread can run
         raise SSHClientException("No match found for '%s' in %s\nOutput:\n%s."
                                  % (expected, timeout, output))
 
@@ -986,7 +983,10 @@ class AbstractSFTPClient(object):
         :return: A new destination path.
         """
         if os.path.exists(destination) or destination == '.':
-            return destination + path_separator + self.get_parent_folder(source, path_separator)
+            fullpath_destination = os.path.join(destination, self.get_parent_folder(source, path_separator))
+            if not os.path.exists(fullpath_destination):
+                os.makedirs(fullpath_destination)
+            return fullpath_destination
         else:
             return destination
 
