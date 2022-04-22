@@ -66,7 +66,10 @@ class JavaSSHClient(AbstractSSHClient):
             raise JavaSSHClientException("Arguments 'allow_agent', 'look_for_keys', "
                                          "`jumphost_index_or_alias` and `keep_alive_interval`" 
                                          " do not work with Jython.")
-        if not self.client.authenticateWithPassword(username, password):
+
+        auth = self.client.authenticateWithPassword(username, password) if password \
+            else self.client.authenticateWithNone(username)
+        if not auth:
             raise SSHClientException
 
     def _login_with_public_key(self, username, key_file, password,
@@ -266,12 +269,11 @@ class RemoteCommand(AbstractCommand):
         self._shell.execCommand(command)
 
     def _execute_with_sudo(self, sudo_password=None):
-        command = self._command.decode(self._encoding)
+        command = 'sudo ' + self._command.decode(self._encoding)
         if sudo_password is None:
-            self._shell.execCommand('sudo ' + command)
+            self._shell.execCommand(command)
         else:
-            self._shell.execCommand('sudo --stdin --prompt "" %s' % (command))
-            self._shell.write('\n\n' + sudo_password + '\n')
+            self._shell.execCommand('echo %s | sudo --stdin --prompt "" %s' % (sudo_password, command))
 
     def _invoke(self):
         command = self._command.decode(self._encoding)
