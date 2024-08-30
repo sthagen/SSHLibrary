@@ -1,9 +1,18 @@
 .. list-table::
    :header-rows: 0
 
-   * - |_github_created_at|
+   * - Statistic:
+     - |_github_created_at|
+     - |_pypi_python_version|
      - |_pypi_downloads|
+   * - Quality:
+     - |_github_main_status|
+     - Next Release:
      - |_github_milestone_4|
+   * - Pulse:
+     - |_github_latest_release|
+     - |_github_commits_since_release|
+     - |_github_last_commit|
 
 SSHLibrary
 ===============
@@ -56,7 +65,7 @@ With recent versions of ``pip`` it is possible to install directly from the
 GitHub_ repository. To install latest source from the master branch, use
 this command::
 
-    pip install git+https://github.com/robotframework/SSHLibrary.git
+    pip install git+https://github.com/MarketSquare/SSHLibrary.git
 
 Alternatively you can download the source distribution from PyPI_, extract
 it, and install it using one the command::
@@ -156,7 +165,7 @@ available:
 .. _libffi-dev: https://pkgs.alpinelinux.org/packages?name=libffi-dev&branch=edge
 .. _robotframework-users: http://groups.google.com/group/robotframework-users
 .. _Slack community: https://robotframework-slack-invite.herokuapp.com
-.. _issue tracker: https://github.com/robotframework/SSHLibrary/issues
+.. _issue tracker: https://github.com/MarketSquare/SSHLibrary/issues
 .. _Other support forums: http://robotframework.org/#support
 
 .. |_github_created_at| image:: https://img.shields.io/github/created-at/MarketSquare/SSHLibrary?logo=robotframework
@@ -167,3 +176,18 @@ available:
 
 .. |_github_milestone_4| image:: https://img.shields.io/github/milestones/progress-percent/MarketSquare/SSHLibrary/25
    :alt: GitHub milestone details
+
+.. |_pypi_python_version| image:: https://img.shields.io/pypi/pyversions/robotframework-sshlibrary
+   :alt: PyPI - Python Version
+
+.. |_github_main_status| image:: https://img.shields.io/github/check-runs/MarketSquare/SSHLibrary/master
+   :alt: GitHub branch check runs
+
+.. |_github_commits_since_release| image:: https://img.shields.io/github/commits-since/MarketSquare/SSHLibrary/latest
+   :alt: GitHub commits since latest release
+
+.. |_github_latest_release| image:: https://img.shields.io/github/release-date/MarketSquare/SSHLibrary
+   :alt: GitHub Release Date
+
+.. |_github_last_commit| image:: https://img.shields.io/github/last-commit/MarketSquare/SSHLibrary
+   :alt: GitHub last commit
